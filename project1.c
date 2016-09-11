@@ -121,6 +121,8 @@ PPMmeta* CheckValidPPM(FILE *file)
 {
 	PPMmeta* meta = malloc(sizeof(PPMmeta));
 	
+	meta.valid = 0;
+	
 	// these markers have values of:
 	// 0 for not started
 	// 1 for in progress
@@ -141,6 +143,13 @@ PPMmeta* CheckValidPPM(FILE *file)
 	while(Mtype != 2 && Mwidth != 2 && Mheight != 2 && Mmax != 2)
 	{
 		char c = fgetc(file);
+		
+		if(c == EOF)
+		{
+			meta.valid = 1;
+			break;
+		}
+		
 		if(Mcomment == 1)
 		{
 			if(c == 10) // newline
@@ -153,6 +162,9 @@ PPMmeta* CheckValidPPM(FILE *file)
 			if(Mtype == 0)
 			{
 				Mtype = 1;
+			}
+			else if(Mtype == 1)
+			{
 				if(c == 'P')
 				{
 					int c2 = fgetc(file);
@@ -176,6 +188,11 @@ PPMmeta* CheckValidPPM(FILE *file)
 				else if(c == 10)
 				{
 					Mwidth = 2; // done parsing width, put it into meta
+					
+					// we want an image with a positive width
+					int width_value = atoi(buffer);
+					if(width_value < 1) meta.valid = 1;
+					
 					meta.width = buffer;
 					buffer = malloc(sizeof(char) * 5);
 				}
@@ -196,6 +213,11 @@ PPMmeta* CheckValidPPM(FILE *file)
 				else if(c == 10)
 				{
 					Mheight = 2; // done parsing height, put it into meta
+					
+					// we want an image with a positive height
+					int height_value = atoi(buffer);
+					if(height_value < 1) meta.valid = 1;
+					
 					meta.height = buffer;
 					buffer = malloc(sizeof(char) * 5);
 				}
@@ -216,8 +238,13 @@ PPMmeta* CheckValidPPM(FILE *file)
 				else if(c == 10)
 				{
 					Mmax = 2; // done parsing max, put it into meta
+					
+					// the color channel should be 8 bits maximum
+					int max_value = atoi(buffer);
+					if(max_value > 255) meta.valid = 1;
+					
 					meta.max = buffer;
-					buffer = malloc(sizeof(char) * 5);
+					//buffer = malloc(sizeof(char) * 5);
 				}
 				else
 				{
@@ -227,8 +254,6 @@ PPMmeta* CheckValidPPM(FILE *file)
 			}
 		}
 	}
-	
-	meta.valid = 0;
 	
 	return meta;
 }

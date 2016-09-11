@@ -10,6 +10,14 @@ typedef struct {
 	char b;
 } Pixel;
 
+typedef struct {
+	char width[5];
+	char height[5];
+	char max[5];
+	int valid;
+	int type;
+} PPMmeta;
+
 // Git:
 // even or semi-even commits
 // atomic commits
@@ -21,27 +29,21 @@ typedef struct {
 // then load file into memory with an unsigned char pointer
 
 // @return int - error code
-int PPMtoP6(FILE *file, char* output);
+int PPMtoP6(FILE *file, char* output, PPMmeta* meta);
 int PPMtoP3(FILE *file, char* output);
 
 /*	CheckValidPPM
 *	@param FILE *file
-*	@return int - 0 if valid, 1 if not valid
+*	@return PPMmeta - valid = 0 if valid, valid = 1 if not valid
 */	
-int CheckValidPPM(FILE *file);
-
-/*	CheckValidPPM
-*	@param FILE *file
-*	@return int - number corresponding to PPM type (3 or 6 for our purposes)
-*/	
-int GetPPMType(FILE *file);
+PPMmeta* CheckValidPPM(FILE *file);
 
 /*	CheckValidPPM
 *	returns a pointer to the entire file loaded into memory
 *	@param FILE *file
 *	@return Pixel* - bytes loaded into memory
 */	
-Pixel* LoadPPM(FILE *file);
+Pixel* LoadPPM(FILE *file, int type);
 
 char* intToStr(int i, int size);
 
@@ -65,27 +67,27 @@ int main(int argc, const char * argv[]) {
 		return 1;
 	}
 	
-	int valid = CheckValidPPM(src);
+	PPMmeta* meta = CheckValidPPM(src);
 	
-	if(valid == 1)
+	if(meta.valid == 1)
 	{
 		// write to stderr "invalid PPM file!"
 		return 1;
 	}
 	
 	if(target_type == '3')
-		PPMtoP3(src, out_name);
+		PPMtoP3(src, out_name, meta);
 	if(target_type == '6')
-		PPMtoP6(src, out_name);
+		PPMtoP6(src, out_name, meta);
 	
 	return 0;
 }
 
 
-int PPMtoP3(FILE *file, char* output)
+int PPMtoP3(FILE *file, char* output, PPMmeta* meta)
 {
 	
-	int type = GetPPMType(file);
+	int type = meta.type;
 	
 	FILE *out = fopen(output, 'w+');
 	
@@ -99,7 +101,7 @@ int PPMtoP3(FILE *file, char* output)
 	else if(type == 6)
 	{
 		// P6 type (rawbits)
-		unsigned char* data = LoadPPM(file);
+		Pixel* data = LoadPPM(file, 6);
 		
 		
 		
@@ -110,9 +112,125 @@ int PPMtoP3(FILE *file, char* output)
 }
 
 
-unsigned char* LoadPPM(FILE *file);
+Pixel* LoadPPM(FILE *file, int type);
 {
 	
+}
+
+PPMmeta* CheckValidPPM(FILE *file)
+{
+	PPMmeta* meta = malloc(sizeof(PPMmeta));
+	
+	// these markers have values of:
+	// 0 for not started
+	// 1 for in progress
+	// 2 for finished
+	// together they make up a finite state machine
+	
+	int Mcomment = 0;
+	int Mtype = 0;
+	int Mwidth = 0;
+	int Mheight = 0;
+	int Mmax = 0;
+	
+	int buffer_len = 0;
+	char buffer[4];
+	
+	// spaghetti code incoming
+	
+	while(Mtype != 2 && Mwidth != 2 && Mheight != 2 && Mmax != 2)
+	{
+		char c = fgetc(file);
+		if(Mcomment == 1)
+		{
+			if(c == 10) // newline
+			{
+				Mcomment = 0;
+			}
+		}
+		else
+		{
+			if(Mtype == 0)
+			{
+				Mtype = 1;
+				if(c == 'P')
+				{
+					int c2 = fgetc(file);
+					meta.type = c2;
+					Mtype = 2;
+				}
+				else
+				{
+					meta.valid = 1;
+					return meta;
+				}
+			}
+			else if(Mwidth <= 1)
+			{
+				Mwidth = 1;
+				
+				if(c == ' ' ??!??! c == '#')
+				{
+					Mcomment = 1;
+				}
+				else if(c == 10)
+				{
+					Mwidth = 2; // done parsing width, put it into meta
+					meta.width = buffer;
+					buffer = malloc(sizeof(char) * 5);
+				}
+				else
+				{
+					buffer[buffer_len] = c;
+					buffer_len ++;
+				}
+			}	
+			else if(Mheight <= 1)
+			{
+				Mheight = 1;
+				
+				if(c == ' ' || c == '#')
+				{
+					Mcomment = 1;
+				}
+				else if(c == 10)
+				{
+					Mheight = 2; // done parsing height, put it into meta
+					meta.height = buffer;
+					buffer = malloc(sizeof(char) * 5);
+				}
+				else
+				{
+					buffer[buffer_len] = c;
+					buffer_len ++;
+				}
+			}	
+			else if(Mmax <= 1)
+			{
+				Mmax = 1;
+				
+				if(c == ' ' || c == '#')
+				{
+					Mcomment = 1;
+				}
+				else if(c == 10)
+				{
+					Mmax = 2; // done parsing max, put it into meta
+					meta.max = buffer;
+					buffer = malloc(sizeof(char) * 5);
+				}
+				else
+				{
+					buffer[buffer_len] = c;
+					buffer_len ++;
+				}
+			}
+		}
+	}
+	
+	meta.valid = 0;
+	
+	return meta;
 }
 
 char* intToStr(int i, int size)

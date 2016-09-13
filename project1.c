@@ -29,8 +29,7 @@ typedef struct {
 // then load file into memory with an unsigned char pointer
 
 // @return int - error code
-int PPMtoP6(FILE *file, char* output, PPMmeta* meta);
-int PPMtoP3(FILE *file, char* output);
+int PPMtoT(FILE *file, char* output, int out_type, PPMmeta* meta);
 
 /*	CheckValidPPM
 *	@param FILE *file
@@ -41,9 +40,11 @@ PPMmeta* CheckValidPPM(FILE *file);
 /*	CheckValidPPM
 *	returns a pointer to the entire file loaded into memory
 *	@param FILE *file
+*	@param int type
+*	@param int size
 *	@return Pixel* - bytes loaded into memory
 */	
-Pixel* LoadPPM(FILE *file, int type);
+Pixel* LoadPPM(FILE *file, int type, int size);
 
 char* intToStr(int i, int size);
 
@@ -76,45 +77,79 @@ int main(int argc, const char * argv[]) {
 	}
 	
 	if(target_type == '3')
-		PPMtoP3(src, out_name, meta);
+		PPMtoT(src, out_name, 3, meta);
 	if(target_type == '6')
-		PPMtoP6(src, out_name, meta);
+		PPMtoT(src, out_name, 6, meta);
+	
+	fclose(src);
 	
 	return 0;
 }
 
 
-int PPMtoP3(FILE *file, char* output, PPMmeta* meta)
+int PPMtoT(FILE *file, char* output, int out_type, PPMmeta* meta)
 {
-	
-	int type = meta.type;
-	
 	FILE *out = fopen(output, 'w+');
 	
 	// values are newline delimited
 	
-	if(type == 3)
+	if(out_type == 3)
 	{
-		// P3 type (ascii)
+		// input P3 type (ascii)
+		Pixel* data = LoadPPM(file, 3, meta.width * meta.height);
 		
+		int c;
+		char newline = 10;
+		for(c = 0; c < meta.width * meta.height; c++)
+		{
+			Pixel p = data[c];
+			fwrite(p.r, sizeof(char), sizeof(p.r), out);
+			fprintf(out, '%c', newline);
+			fwrite(p.g, sizeof(char), sizeof(p.g), out);
+			fprintf(out, '%c', newline);
+			fwrite(p.b, sizeof(char), sizeof(p.b), out);
+			fprintf(out, '%c', newline);
+		}
 	}
-	else if(type == 6)
+	else if(out_type == 6)
 	{
-		// P6 type (rawbits)
-		Pixel* data = LoadPPM(file, 6);
+		// input P6 type (rawbits)
+		Pixel* data = LoadPPM(file, 6, meta.width * meta.height);
 		
+		//fwrite(data, sizeof(Pixel), meta.width * meta.height, out); 
 		
-		
+		int c;
+		char newline = 10;
+		for(c = 0; c < meta.width * meta.height; c++)
+		{
+			Pixel p = data[c];
+			//fwrite(p.r, sizeof(char), sizeof(p.r), out);
+			//fwrite(p.g, sizeof(char), sizeof(p.g), out);
+			//fwrite(p.b, sizeof(char), sizeof(p.b), out);
+			fprintf(out, "%i", atoi(p.r));
+			fprintf(out, "%i", atoi(p.g));
+			fprintf(out, "%i", atoi(p.b));
+		}
 	}
-	
-	// write to stderr "Unsupported PPM type: %i!", type
-	return 1;
+	else
+	{
+		fclose(out);
+		// write to stderr "Unsupported PPM type: %i!", type
+		return 1;
+	}
+	fclose(out);
+	return 0;
 }
 
 
-Pixel* LoadPPM(FILE *file, int type);
+Pixel* LoadPPM(FILE *file, int type, int size);
 {
+	Pixel* buffer = malloc(sizeof(Pixel) * size);
 	
+	long int pos = ftell(file);
+	printf("%d\n", pos);
+	
+	return buffer;
 }
 
 PPMmeta* CheckValidPPM(FILE *file)

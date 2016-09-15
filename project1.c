@@ -11,7 +11,7 @@ typedef struct {
 typedef struct {
 	int width;
 	int height;
-	unsigned char max;
+	int max;
 	int valid;
 	int type;
 } PPMmeta;
@@ -48,7 +48,7 @@ int main(int argc, const char * argv[]) {
 		return 1;
 	}
 	
-	char* target_type = argv[1];
+	const char* target_type = argv[1];
 	char* src_name = argv[2];
 	char* out_name = argv[3];
 	
@@ -149,11 +149,46 @@ Pixel* LoadPPM(FILE *file, int type, int size)
 	
 	if(type == 3)
 	{
+		char* cbuffer;
+		int cbuffer_size;
+		char character;
+		int c;
+		
+		for(c = 0; c < size; c++)
+		{
+			int r = -1;
+			int g = -1;
+			int b = -1;
 			
+			while(r < 0 || g < 0 || b < 0) // read values for each of the rgb components for a single pixel
+			{
+				cbuffer = malloc(sizeof(char) * 4);
+				cbuffer_size = 0;
+				character = fgetc(file);
+				while(character != 10 && cbuffer_size < 3)
+				{
+					cbuffer[cbuffer_size] = character;
+					cbuffer_size ++;
+					character = fgetc(file);
+				}
+				
+				int value = atoi(cbuffer);
+				if(r == -1) r = value;
+				else if(g == -1) g = value;
+				else if(b == -1) b = value;
+			}
+			
+			Pixel p;
+			p.r = r;
+			p.g = g;
+			p.b = b;
+			
+			buffer[c] = p;
+		}
 	}
 	else if(type == 6)
 	{
-		printf("type: 6, size: %d\n", size);
+		//printf("type: 6, size: %d\n", size);
 		int c;
 		for(c = 0; c < size; c++)
 		{
@@ -254,7 +289,7 @@ PPMmeta CheckValidPPM(FILE *file)
 				}
 				else
 				{
-					printf("reading char to width: %c\n", c);
+					//printf("reading char to width: %c\n", c);
 					buffer[buffer_len] = c;
 					buffer_len ++;
 				}
@@ -286,7 +321,7 @@ PPMmeta CheckValidPPM(FILE *file)
 				}
 				else
 				{
-					printf("reading char to height: %c\n", c);
+					//printf("reading char to height: %c\n", c);
 					buffer[buffer_len] = c;
 					buffer_len ++;
 				}
@@ -304,7 +339,7 @@ PPMmeta CheckValidPPM(FILE *file)
 					Mmax = 2; // done parsing max, put it into meta
 					
 					// the color channel should be 8 bits maximum
-					unsigned char max_value = atoi(buffer);
+					int max_value = atoi(buffer);
 					if(max_value > 255) 
 					{
 						fprintf(stderr, "Image must have 8 bit maximum color channels!\n");
@@ -316,7 +351,7 @@ PPMmeta CheckValidPPM(FILE *file)
 				}
 				else
 				{
-					printf("reading char to max: %c\n", c);
+					//printf("reading char to max: %c\n", c);
 					buffer[buffer_len] = c;
 					buffer_len ++;
 				}

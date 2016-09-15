@@ -172,10 +172,13 @@ Pixel* LoadPPM(FILE *file, int type, int size)
 					character = fgetc(file);
 				}
 				
-				int value = atoi(cbuffer);
-				if(r == -1) r = value;
-				else if(g == -1) g = value;
-				else if(b == -1) b = value;
+				if(cbuffer_size > 0)
+				{
+					int value = atoi(cbuffer);
+					if(r == -1) r = value;
+					else if(g == -1) g = value;
+					else if(b == -1) b = value;
+				}
 			}
 			
 			Pixel p;
